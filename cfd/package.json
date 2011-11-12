@@ -1,0 +1,17 @@
+{
+  "name": "cloudful",
+  "author": "Stanislas Polu <polu.stanislas@gmail.com>",
+  "version": "0.1.0-1",
+  "scripts": {
+    "start": "./app.js"
+  },
+  "dependencies": {
+    "express": "2.5.0",
+    "jade": ">= 0.0.1",
+    "hiredis": "latest",
+    "redis": "latest",
+    "oauth": "latest"
+  },
+  "analyze": false,
+  "subdomain": "v0.cloudful"
+}
