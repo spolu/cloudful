@@ -42,27 +42,51 @@
  * Finally, some utilities such as CF.$ and CF.guid
  *
  */
-If (!window.CF) {
+if (!window.CF) {
     CF = {	
+	
+	_logging: true,
+	
+	
+	/** 
+	 * copies things from source into target. (borrowed from FB)
+	 * @param target {Object}      the target object
+	 * @param source {Object}      the source object
+	 * @param overwrite {Boolean}  [optional] should overwrite
+	 * @param transform {Function} [optional] transformation function
+	 */
+	copy: function(target, source, overwrite, transform) {
+	    var key;
+	    for (key in source) {
+		if (overwrite || typeof target[key] === 'undefined') {
+		    target[key] = transform ? transform(source[key]) : source[key];
+		}
+	    }
+	    return target;
+	},
+	
 	/**
 	 * set obj to the specified namespace
-	 * @param path {String}  qualified path
-	 * @param obj {Object}   the oject to set
+	 * @param path {String}        qualified path
+	 * @param obj {Object}         the oject to set
+	 * @param overwirte {Boolean}  [optional] should overwrite
 	 * @return {Object} the created namespaced object
 	 */
-	ns = function(path, obj, override) {
-	    var parts = path.split('.');
+	ns: function(path, obj, overwrite) {
+	    var parts = path ? path.split('.') : [];
 	    if(parts[0] === 'CF')
 		parts = parts.slice(1);
 	    if(parts.length === 0 ||
 	       (parts.length === 1 && parts[0] === ''))
-		throw new Error("can't provide CF itself");
+		throw new Error("CF: can't provide CF itself");
 	    var node = window.CF;
 	    for(var i = 0; i < parts.length - 1; i ++) {
-		node[parts[i]] = node[parts[i]] || {};
+		var n = {}; n[parts[i]] = {};	
+		CF.copy(node, n, false);
 		node = node[parts[i]];
 	    }
-	    node[parts[i]] === override ? obj : (node[parts[i]] || obj);
+	    var n = {};	n[parts[i]] = obj;  
+	    CF.copy(node, n, overwrite);
 	    return node[parts[i]];
 	},
 	    
@@ -72,9 +96,8 @@ If (!window.CF) {
 	 * @param that {Object}      the receiver object
 	 * @param name {String}      name of the method
 	 * @param method {Function}  the actual method
-	 * @return undefined
 	 */
-	method = function(that, name, method, _super) {
+	method: function(that, name, method, _super) {
 	    if(_super) {
 		var m = that[name];
 		_super[name] = function() {
@@ -91,9 +114,8 @@ If (!window.CF) {
 	 * @param name {String}  name of the getter
 	 * @param obj {Object}   the source object
 	 * @param prop {String}  the property of obj ot be get
-	 * @return undefined
 	 */
-	getter = function(that, name, obj, prop) {
+	getter: function(that, name, obj, prop) {
 	    var getter = function() {
 		return obj[prop];
 	    };
@@ -107,15 +129,24 @@ If (!window.CF) {
 	 * @param name {String}  name of the getter
 	 * @param obj {Object}   the source object
 	 * @param prop {String}  the property of obj ot be set
-	 * @return undefined
 	 */
-	setter = function(that, name, obj, prop) {
+	setter: function(that, name, obj, prop) {
 	    var setter = function (arg) {
 		obj[prop] = arg;
 		return that;
 	    };
 	    that['set' + name.substring(0, 1).toUpperCase() + name.substring(1)] = setter;
 	},
+
+	/**
+	 * informs whether an object responds to a give method
+	 * @param that {Object} the object
+	 * @param name {String} the method name
+	 * @return {Boolean} whether it responds
+	 */
+	responds: function(that, name) {
+	    return (that[name] && typeof that[name] === 'function');
+	},	
 	
 	/**
 	 * jQuery style shortcut for document.getElementById
@@ -130,13 +161,25 @@ If (!window.CF) {
 	 * weak random unique ID
 	 * @return {String} random unique ID
 	 */
-	guid = function () {
+	guid: function () {
 	    var res = '', i, j;
 	    for(j = 0; j < 32; j++) {
 		i = Math.floor(Math.random()*16).toString(16).toUpperCase();
 		res += i;
 	    }
 	    return res;
-	};
+	},
+	
+	/**
+	 * conditional [local] log of a string (if possible)
+	 * @param {String} message
+	 */
+	log: function(str) {
+	    if(CF._logging &&
+	       typeof console !== 'undefined' &&
+	       typeof console.log !== 'undefined') {
+		console.log(str);
+	    }	    
+	}		
     }	
 }
