@@ -52,7 +52,7 @@ CF.ns('init', function(options) {
 	if(typeof $ === 'undefined' ||
 	   typeof $.fn === 'undefined' ||
 	   CF.Helper.vcomp('1.7', $.fn.jquery)) {
-	    throw new Error('jQuery >= 1.7 required');
+	    throw new Error('CF.init: jQuery >= 1.7 required');
 	}
 	
 	// TODO: add user initialization	

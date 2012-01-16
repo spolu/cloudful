@@ -1,0 +1,36 @@
+% -*-LaTeX-*-
+
+\begin{abstract}
+
+Over the past decade, the ``Cloud'' has introduced successive major
+innovations in the way developpers deploy and maintain their
+applications: First, it started by relieving them from the
+administration of physical machines (EC2~\cite{amazon:ec2},
+Rackspace~\cite{rackspace:cloudservers},
+Joyent~\cite{joyent:smartmachines}). Then, more recently it has freed
+them from administration altogether by handling automatic deployment,
+maintenance and scaling of apps on hosted clusters (App
+Engine~\cite{google:appengine}, Heroku~\cite{heroku:cloudapp},
+Nodejitsu~\cite{nodejitsu:nodejscloud}).
+
+We argue that the next natural simplification to be introduced by the
+``Cloud'' is the ability to solely rely on client-side code for
+application developement by taking advantage of the various
+cloud-based services available today over the network, through
+APIs. Nevertheless, such ``mash-ups'' are still uncommon and reserved
+to simple experimental projects---Applications developpers still
+heavily rely on server-side code for most of their advanced projects.
+
+We demonstrate that the reason why it is still impractical for
+developpers to free themselves entirely from the use of server-side
+code in most of their project is authentication. More precisely, it is
+the inability to forward authentication from identity providers
+(Email/Password, Twitter Oauth, Facebook Connect, Google OAuth, ...)
+to data providers and service APIs. Finally, we advocate a new
+authentication model for foreign APIs and present ``cloudful'', a
+protocol for that model, as well as a client library providing the
+missing authentication forwarding infrastructure to eventually enable
+the design of advanced applications solely out of client code.
+
+\end{abstract}
+

@@ -1,0 +1,490 @@
+\documentclass[letterpaper,twocolumn,10pt]{article}
+\usepackage{usenix,epsfig,endnotes}
+\usepackage{amsmath, amsthm} 
+\usepackage{amsfonts,amssymb}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathbb{C}}
+
+\newtheorem{definition}{Definition}
+
+\begin{document}
+
+\date{}
+\title{pFS : Update Locally, Propagate Asynchronously}
+
+\author{
+{\rm Atos}\\
+\and
+{\rm Portos}\\
+} % end author
+
+\maketitle
+
+\begin{abstract}
+pFS is a distributed storage system designed to reflect the fact that
+end users have more and more different devices on which they want to
+have access to their data, ranging from desktop computers, to laptop
+computers and mobile smartphones.  pFS exploits a principle that
+relieve users from having to be connected or to wait for communication
+with a centralized system : Update locally, propagate asynchronously.
+It makes no assumption on connectivity or network partitioning and
+disconnected operations is the normal mode of operation. In such
+system, concurrent updates to the same ressource become an issue since
+we have no centralized instance to synchronize them. We introduce a
+versioning system that allow to keep track of every versions of a
+ressource, without global reconciliation, allowing the end users to
+resolve conflicts at will.
+\end{abstract}
+
+
+\section{Introduction}
+
+Users having an increasing number of devices on which they need to
+access their data ranging from desktop computer to laptop computers
+and mobile smartphones, they face the data management problems of
+maintaining multiple versions of a file on different devices. They
+achieve synchronization by sending email or eventually relying on a
+central remote file server. But manual synchronization is very
+error-prone, and a central server cannot be accessed when disconnected
+from the network. Moreover, not all users are ready to trust any
+organization to store their personal data.
+
+Collaboration is even more error prone. Users are often force to rely
+on one person to cenralize all updates in order to keep track of the
+most recent version of a ressource. CVS has answered this problem for
+developpers, but requires manual intervention from the user, and
+setting up a central repository for files.
+
+The growing use of third-party storage and computing ``clouds'', such
+as Google Web Services or Amazon S3 clearly shows the need for new
+solutions to this problematic. But we believe that they also have
+limitations in terms of trust and need for connectivity and could be
+complemented by the use of ``personal clouds'' spawning all of a
+user's or a group of users' devices interacting together at the hedge
+of the network. If so, mobile devices as well as dekstop computers
+will have to coordinate their interaction in the context of
+disconnected operations and disparate storage capacities, creating new
+needs for synchronization and replication that are not answered by
+conventional systems. Building a unified storage and naming system in
+this context is a first step to such ``personal clouds''.
+
+pFS is a decentralized storage system that makes no assumption on
+connectivity or network partitioning and expose data through a
+standard file system interface. pFS replicates all or a
+subset of the user's data on all devices. Updates to the ressources
+take place locally and the propagation of those updates to other
+devices happen asynchronously. In such context, concurrent updates to
+the same ressource becomes an important issue since we have no
+centralized instance to synchronize them. We introduce a new
+versioning system based on Parker \emph{et al.}'s version vectors
+~\cite{Parker1983} that limits the number of coexisting version of a
+same ressource while ensuring the detection of all conflicts.
+
+When it comes to mobile devices with smaller storage capacities than
+dekstop computers, with replication comes eviction. pFS apply a local
+eviction policy on files when not enough space is left on a device
+while ensuring that no data is lost globally. Finally, pFS makes no
+assumption concerning the format of the files and rely on the user or
+its application to merge different versions manually or automatically.
+It also provides an interface to influence the decisions made by the
+eviction policy.
+
+\section{Related Work}
+
+CVS, Coda, LBFS, P2P filesystems
+
+\section{Overview}
+
+pFS presents a unified file system interface on a set of devices. Each
+devices replicates locally as much data as possible. The system is
+composed of 4 components :
+\begin{itemize}
+\item \textbf{pFS Library}: pFS Library exports a generic file system
+  API and store files, directories and versionning information in its
+  back storage using the device's OS native file system.
+\item \textbf{Back Storage}: a local directory containing all data and
+  metadata used by pFS along with a log of all updates performed on
+  this SD.
+\item \textbf{FUSE stub}: stub functions calling pFS Library to
+  present a conventional file system interface to the user.
+\item \textbf{pFS Daemon}: a Daemon process in charge of propagating
+  updates asynchronously and enforcing the eviction policy if space is
+  needed. It relies on the local log written by pFS Library and stored
+  in the back storage to learn about updates to propagate and use
+  specific functions exported by pFS Library to update or evict local
+  copies of data.
+\end{itemize}
+
+
+\section{Versionning}
+
+\subsection{Terminology}
+
+We denote by $sd_{d}$ a storage space of capacity $S(sd_{d})$
+located on the device $d$. A group is a set of $sd$s and an
+access control list:
+\begin{center}
+$g = (\{sd^{d}\}, \text{ACL})$
+\end{center}
+Note that a given device can have multiple $sd$s and that $sd$s are
+not shared among different groups. But a $sd$ is provided and intended
+to be used by a given user $u$. Therefore each $sd$ is given a
+readable name :
+\begin{center}
+$\text{name}(sd) = \text{user}.\text{device}$. 
+\end{center}
+Moreover, Each user has a special group $me(u)$ on which he has
+exclusive access:
+\begin{center}
+$me(u) = (\{sd^{d}\}, \text{u:rw})$
+\end{center}
+
+\subsection{Disconnected Operations}
+
+pFS makes no assumption concerning network partitioning and
+connectivity. We model connectivity as connections happening between
+two $sd$s belonging to the same group and allowing all data and
+metadata concerning a given ressources to be exchanged. We denote such
+connection between $sd_{1}$ and $sd_{2}$ concerning ressource $f$ as
+$c(sd_{1}, sd_{2}, f)$.
+
+\begin{figure}[t]
+\begin{center}
+{\tt \small
+\begin{verbatim}
+struct pfs_dir
+{
+  char id [PFS_ID_LEN];
+  uint32_t entry_cnt;
+  struct pfs_entry ** entry;
+};
+struct pfs_entry
+{
+  char name [PFS_NAME_LEN];
+  uint32_t main_idx;
+  uint32_t ver_cnt; 
+  struct pfs_ver ** ver;
+};
+enum pfs_entry_type {
+  PFS_DEL = 0,
+  PFS_FIL = 1,
+  PFS_DIR = 2,
+  PFS_SML = 3 
+};
+struct pfs_ver
+{
+  uint8_t type;
+  char dst_id [PFS_ID_LEN];
+  struct pfs_vv * vv;
+};
+struct pfs_vv
+{ 
+  char last_updt [PFS_ID_LEN];
+  uint32_t len;
+  char ** sd_id;
+  uint32_t * value;
+};
+\end{verbatim}
+}
+\end{center}
+\caption{In-memory data structures for directory, entries and version vectors.}
+\end{figure}
+
+\begin{table*}[t]
+\begin{center}
+  \begin{tabular}[t]{|l||cc|cc|cc|}
+    \hline
+    \emph{ops} & $sd_{1}$ & & $sd_{2}$ & & $sd_{3}$ & \\
+    \hline
+
+    $sd_{1} : f_{\text{create}}$ & 
+    $\langle 1,0,0\rangle$ & &
+     & &
+     & \\
+
+    $c(sd_{1},sd_{2},f)$ &
+    $\langle 1,0,0 \rangle$ & &
+    $\langle 1,0,0 \rangle$ & &
+     & \\
+
+    $sd_{2} : f_{\text{modif}}$ & 
+    & &
+    $\langle 1,1,0 \rangle$ & &
+     & \\
+
+    $sd_{1} : f_{\text{modif}}$ &
+    $\langle 2,0,0 \rangle$ & &
+    & &
+     & \\
+
+    $c(sd_{2},sd_{3},f)$ &
+    & & 
+    $\langle 1,1,0 \rangle$ & &
+    $\langle 1,1,0 \rangle$ & \\
+
+    $c(sd_{1},sd_{3},f)$ &
+    $\langle 2,0,0 \rangle$ & $\langle 1,1,0 \rangle$ &
+    & &
+    $\langle 1,1,0 \rangle$ & $\langle 2,0,0 \rangle$ \\
+
+    $sd_{3} : f_{\text{modif}}$ &
+    & &
+    & & 
+    $\langle 1,1,1 \rangle$ & $\langle 2,0,0 \rangle$ \\
+
+    $c(sd_{2},sd_{3},f)$ &
+    & &
+    $\langle 1,1,1 \rangle$ & $\langle 2,0,0 \rangle$ & 
+    $\langle 1,1,1 \rangle$ & $\langle 2,0,0 \rangle$ \\
+
+    $sd_{2} : f_{\langle 1,1,1 \rangle \leftarrow \langle 2,0,0 \rangle}$ &
+    & &
+    $\langle 2,2,1 \rangle$ & &
+    & \\
+
+    $c(sd_{1},sd_{2},f)$ &
+    $\langle 2,2,1 \rangle$ & &
+    $\langle 2,2,1 \rangle$ & & 
+    & \\
+
+    $c(sd_{1},sd_{3})$ &
+    $\langle 2,2,1 \rangle$ & &
+    & &
+    $\langle 2,2,1 \rangle$ & \\
+
+    \hline
+  \end{tabular}
+\end{center}
+\caption{Evolution of version vectors for a file $f$ modified from
+  three different $sd$s. For each $sd$ we show the main version
+  vector relative to that $sd$ fisrt. We show the version vector list
+  for each $sd$ only when it is modified.
+  Here the maximum number of
+  coexisting versions for $f$ is 2. We could have reached the worst
+  case, that is 3, by modifying $f$ from the three different $sd$s
+  without any connection occuring between modifications.}
+\end{table*}
+
+\subsection{Version Vector}
+
+pFS does not maintain a versioning of the files and directories but a
+versionning of the directory entries. It allows much more flexibility
+to handle cases where two different ressources (e.g: a file and a
+directory) have been given the same name on two different $sd$s.  pFS
+associates with each file and directory a global unique identifiant
+generated on creation by applying a 64-bits md5 cryptographic hash
+function on the concatenation of the identifiant of the $sd$ where the
+ressource is created and an incremented counter maintained on each
+$sd$. A directory is therefore a list of versionned entries mapping
+names to ids. To encompass the notion of file versioning, each time a
+file is modified, its id is regenerated and associated entry
+updated. Figure 1 shows the in-memory data structures used to
+represent a directory and its versionned entries.
+
+Each version of an entry is associated with a version vector as
+defined by Parker \emph{et al.}~\cite{Parker1983} from which we
+borrow the following definition replacing ``file'' by ``entry'' and
+``sites'' by ``$sd$s'' :
+
+\begin{definition}
+A version vector for an entry $e$ is a sequence of $n$ pairs, where
+$n$ is the number of $sd$s at which $e$ is stored. The $i$th pair
+$(sd_{i}, v_{i})$ gives the index of the latest version of $e$ made at
+$sd_{i}$. In other words, the $i$th vector entry counts the number
+$v_{i}$ of updates to $e$ made at $sd_{i}$.
+\end{definition}
+
+When the $sd$s and their order are known or implied, we will represent a
+version vector as $\langle v_{1}, ..., v_{n} \rangle$. From now on, we
+will designate a versionned entry $e$ by the name it associates with
+ids. When talking about entry $f$, we refer to the versionned id that
+associates name $f$ with a set of ids pointing to different
+ressources.
+
+We say that a version vector $vv^{(1)}$ dominates $vv^{(2)}$ if
+$\forall sd_{i}, v_{i}^{(1)} \geq v_{i}^{(2)}$. Conflicts are reliably
+detected when it exists two version vectors $vv^{(1)}, vv^{(2)}$ such
+that $vv^{(1)}$ does not dominate $vv^{(2)}$ and $vv^{(2)}$ does not
+dominate $vv^{(1)}$. 
+
+\subsubsection{Conflicts}
+
+When a conflict is detected, pFS does not attempt to resolve it
+automatically. It relies on concepts introduced by Gifford 
+\emph{et al.}~\cite{Gifford1988} 
+to provide feedback to users or applications by generating two
+different file names when reading the directory for the two different
+versions of the entry. When a conflict is detected for an entry $f$,
+two names pointing to two different ressources are listed : 
+\begin{center}
+{\tt name($sd_{i}$):f} \\
+{\tt name($sd_{j}$):f}
+\end{center}
+Where $sd_{i}$ and $sd_{j}$ are the $sd$s where
+the last update happened for each version of the entry.
+
+\subsubsection{Merge}
+
+Merging is achieved by using the {\tt rename} system call. Once all
+information from the two different versions has been inserted by the
+user or an application into one of the versions of the entry,
+invoking:
+\begin{center} 
+{\tt rename (name($sd_{j}$):f,name($sd_{i}$):f)}
+\end{center}
+ deletes entry version {\tt name($sd_{j}$):f} along with the
+ underlying ressource and updates 
+{\tt name($sd_{i}$):f}'s version vector. The underlying content of 
+{\tt name($sd_{i}$):f} stay unchanged, since the actual merging
+operation has to be done before calling {\tt rename}.
+If the two initial version vectors where
+$vv^{(i)}=(sd_{k},v_{k}^{(i)})_{k}$ and
+  $vv^{(j)}=(sd_{k},v_{k}^{(j)})_{k}$, The resulting version
+vector is 
+\begin{center}
+$vv^{(i \leftarrow j)}=(sd_{k},
+max(v_{k}^{(i)},v_{k}^{(j)}) + \delta _{i}^{k})_{k}$
+\end{center}
+The resulting version vector dominates both original version vectors
+and count one update for this merging operation for $sd_{i}$.
+
+Hence, users are able to detect conflicts, resolve them manually or
+automatically using third-party application, and merge the two
+versions into a final version that supersedes them. All those
+operations can be expressed through the classical file
+system interface and therefore require absolutely no change to
+existing terminals and utilities.
+
+\subsubsection{Main Version}
+
+To avoid the proliferation of entry versions, we introduce the notion
+of \emph{main version}. We define an order $<_{sd_{i}}$ relative to
+$sd_{i}$ over the versions of a given entry :
+
+\begin{definition}
+We say that $vv^{(1)} >_{sd_{i}} vv^{(2)}$ if the update count
+relative to $sd_{i}$ is greater in $vv^{(1)}$ than it is in
+$vv^{(2)}$. Or if those quantities are equals, if the total number
+of updates is greater in $vv^{(1)}$ than it is in $vv^{(2)}$.
+\end{definition}
+ 
+We can always determine for each $sd$ a maximum version verctor (by
+breaking the ties arbitrarly if two or more candidates are
+``equals''). We call the associated entry version the main version for
+that $sd$.
+
+When multiple version of an entry named {\tt f} coexist, we display
+the main version as {\tt f} and the other version as before :
+\begin{center}
+  {\tt f} \\
+  {\tt name($sd_{i}$):f} \\
+  {\tt ...}
+\end{center}
+Moreover pFS enforces that only the main version of an entry is
+writable, the other ones being accessible read-only.
+Therefore, merging process is achieved by inserting into the main
+version of an entry all the information contained in another version,
+and then calling :
+\begin{center}
+{\tt rename (name($sd_{j}$):f, f)}.
+\end{center}
+Under such restrictions, a $sd$ can only be the last updater of its
+main version, and the total number of versions seen by a $sd$ for any
+given entry is bounded by the number of $sd$s participating in the group.
+{\proof
+Suppose we have $k$ version vectors, $vv^{(1)},..., vv^{(k)}$ for an
+entry $f$ at a given $sd$, and $n$ $sd$s, $sd_{1}, ..., sd_{n}$
+participating in the group. A new version vector can only be generated
+by updating an entry or merging two entry versions, and the resutling
+version vector is necessarely the main version vector of the $sd$
+where the update occured. Therefore, for each version vector
+$vv^{(i)}$, it exists $l$ such that $sd_{l}$ has $vv^{(i)}$ as main
+version vector relatively to the set $vv^{(1)},..., vv^{(k)}$. If it
+exists $vv^{(i)},vv^{(j)}$ such that $sd_{l}$ has $vv^{(i)}$ and
+$vv^{(j)}$ as main version vector, then one dominates the other and
+$i=j$. Thus, $k \leq n$. \qed
+}
+
+Note that the set $vv^{(1)},..., vv^{(k)}$ can differ from one $sd$ to
+the other if all updates are not yet propagated to all $sd$s. Table 1
+shows the evolution of the version vectors associated with an
+entry updated from three different $sd$s.
+
+\subsection {${\tt pfs\_set\_entry}$}
+
+A nice property of this versionning system is that every classical
+file system operations can be represented as a call to a unique
+operation {\tt pfs\_set\_entry}. The declaration of the function is as
+follow:
+
+\begin{center}
+{\tt \small
+\begin{verbatim}
+int pfs_set_entry 
+  (struct pfs_instance * pfs,
+   const char * grp_id,
+   const char * dir_id,
+   const char * name,
+   const uint8_t reclaim,
+   const struct pfs_ver * ver);
+\end{verbatim}
+}
+\end{center}
+
+{\tt pfs\_set\_entry} adds version {\tt ver} (see Figure 1 for a declaration
+of {\tt struct pfs\_ver}) to the entry {\tt name} in the directory
+designated by {\tt dir\_id} in the group designated by {\tt grp\_id}.
+{\tt reclaim} is used to determine wether or not ressources pointed by
+versions that are dominated by {\tt ver} in entry {\tt name} should be
+reclaimed or not. It is particularly usefull for the {\tt rename}
+operation. Let us show a few examples of how file system operations
+map to {\tt pfs\_set\_entry} operations. For clarity, we ignore the
+{\tt grp\_id} and {\tt dir\_id} and only show the type of the 
+{\tt ver} used :
+
+\begin{itemize}
+  \item \textbf{open ($f$, O\_CREATE)} : \\
+    generate new back storage file and $id$ \\
+    {\tt pfs\_set\_entry ($f$, (FIL, $id$), 1)}
+
+  \item \textbf{close ($f$)} when $f$ is dirty : \\
+    regenerate back storage $id'$ \\
+    {\tt pfs\_set\_entry ($f$, (FIL, $id'$), 1)}
+    
+  \item \textbf{unlink ($f$)} : \\
+    {\tt pfs\_set\_entry ($f$, (DEL, 0), 1)}
+
+  \item \textbf{rmdir ($d$)} : \\
+    {\tt pfs\_set\_entry ($d$, (DEL, 0), 1)}
+
+  \item \textbf{rename ($f_1$, $f_2$)} : \\
+    {\tt pfs\_set\_entry ($f_1$, (DEL, 0), 0)} \\
+    {\tt pfs\_set\_entry ($f_2$, (FIL, $id$), 1)}
+\end{itemize}
+
+We haven't shown the version vectors used here. They are generated or
+incremented according to the semantics we defined previously. Note
+that a deleted entry version persist in the system as being of type
+{\tt DEL}. Such conservative technique is needed to handle cases where
+an entry might have been deleted on one $sd$ and updated on
+another. The {\tt DEL} type has to be treated as any other type of
+entry by the versionning system.
+
+
+\section{Mobile Devices}
+
+\section{Implementation}
+
+\section{Performance}
+
+\section{Conclusion}
+
+\section{Future Work}
+
+The actual implementation of pFS does not focus on performance. The
+way pFS has been designed would be really adapted to a log-structured
+file system. We believe that it is possible drastically improve the
+performance by implementing pFS as a log-structured file-system.
+
+\end{document}
