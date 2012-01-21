@@ -2,22 +2,83 @@
 
 \section{Introduction}
 
-%
-%
+The raise of the ``Cloud'' model has introduced major innovations not
+only for consumers but also for developpers. In the classic layered
+model of cloud computing~\cite{nist:cloud}, these innovations appeared
+over the past decade bottom up starting by \emph{IaaS} solutions
+(Infrastructure as a Service), going up with \emph{PaaS}
+solutions (Platform as a Service) and finally reaching the top of the
+stack with the increasing number of \emph{SaaS} solutions for
+developpers, that is, hosted databases, data APIs, and service APIs.
 
-``Cloud solutions'' offered to applications developeprs have evolved
-rapidly over the past years: they first started as IaaS
-(Infrastructure as a Service such as EC2, Rackspace, Joyent), freeing
-the developpers from administration of physical machines. More
-Recently, they mutated into PaaS offerings (Platfrom as a Service such
-as Heroku, AppEngine, Nodejitsu), freing the developpers from
-administration altogether and generally accompanied by a variety of
-DBaaS solutions (Hosted Databases such as MongoHQ, RedisToGo)---with
-the promise of removing from the application development equation the
-complexities of deployment and scaling. Additionnally, major data
-providers all have built an APIs (youtube, foursquare, twitter, ...)
-and a large number of service APIs are being created to virtualize a
-variety of tasks generally handled by server-side code or appliances
-such as search, publish/subscribe, message queues, ... 
+IaaS solutions first became popular with Amazon EC2 which launched in
+2006. They allowed developpers to get rid of administration of physical
+machines and enabled small teams with limited resources to provide
+first-class services with high availability at a competitive
+price. PaaS solutions appeared a few years later and became popular with
+Heroku and App Engine in 2008. With few additional constraints, PaaS
+solutions helped developpers test, deploy, maintain and scale their
+applications automatically. They helped decrease the time to market
+for a variety of project classes. Applications being hosted and run in
+an opaque environment, the PaaS model has fueled the appearance of a
+variety of hosted databases and REST-based services to be
+used as easily pluggable tools by developpers.
+
+At the same time, with Twitter example, the API has become commonly
+recognized as a must-have distribution channel for any consumer
+platform. Consequently, a very large number of data-driven APIs have
+been opened to developpers to leverage in their apps.
+
+As a result, it is now possible to find hosted version of any kind of
+databases (MongoDB, Redis, MySQL) as well as APIs for all sorts of
+tasks (Realtime Pub/Sub, File Storage, Push Notifications, Search),
+and all sorts data (Maps, Location, Social Content, Music, Images).
+Even though an hosted database is not a pure REST API, it is
+conceptually very close and easily adaptable into a REST API with a
+simple level of indirection. For that matter, we will denote without
+distinction as ``APIs'' all the aforementioned types of remote
+services: hosted databases, tasks or service APIs as well as
+data-driven APIs.
+
+The more complete this set of available ``APIs'' is becoming, the more
+pluggable functionalities or data sets developpers have at their
+disposal to build up their applications. So much that the increasing
+number of ``APIs'' available to developpers is progressively making
+server-side code less and less important, often relegated to the status
+of simple \emph{API mashup} in charge of orchestrating the use of
+these remote services. 
+
+Considering the more specific case of web applications (constrained
+by the \emph{same-origin} policy), with the democratization of
+solutions allowing cross-origin requests (CORS, JSONP, Flash) and
+their use by major web players such as Google or Facebook, it is now
+perfectly acceptable to consider client-code able to tap into remote
+APIs directly.
+
+These two trends enable a programming model where server-side code is
+no longer required. In this model the use of ``APIs'' is entirely
+orchestrated by client code. Server-side code is only required in
+projects with very specific needs (BigData, specialized or large-scale
+Search, advanced Music, Image or Video manipulation, ...) and should
+also be placed behind clearly defined private APIs.
 
 
+
+
+% ACL requires Auth requires (Server | Direct Auth)
+% Later is not viable
+% Requirement for the ability for App A to rely on Identity I 
+% and forward it to Api A
+% This is what cloudful is a protocol for...
+% and a client library with multi-indentity management and pluggable api infrastructure
+% factor code that is annoying to do and security sensitive
+
+
+% Why not common place
+% Auth PB by contrapose
+
+% This is what cloudful is for
+% Intro of the protocol
+
+% Additionally library:
+% Custom API, encapsulate authentication code

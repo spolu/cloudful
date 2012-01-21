@@ -1,0 +1,36 @@
+% -*-LaTeX-*-
+
+\section{Current Limitations}
+
+With the ``APIs'' as well as the cross-origin techniques being available,
+it is interesting to ask why such programming model is not more widely
+used today and generaly reserved to simple demonstrational projects more
+commonly referred as ``web mashups''. 
+
+One important reason why server-side code is still widely used is
+authentication: most projects rely on ACL-based protection of
+their consumer data. Let's consider an application which would store
+such data on a remote service through an API implementing some form of
+access-control lists. If the consumer is not asked to authentify directly against
+that API, there is no way for client code alone to securely prove the API
+the identity of the current consumer for the application. Or,
+no consumer in her right mind would agree to authentify against the 2,
+3 (10?) APIs leveraged by the application she's attempting to use.
+
+Applications developpers know that, that's the reason why they
+generally implement their own authentication system based on a native
+identity (email & password) or an identity provider (Oauth service such
+as Facebook, Google, Twitter, ...) and use their server code to
+forward that identity to the APIs they use and enforce their security
+model.
+
+That task is extremely common across projects, it is also sensitive in
+terms of security and, more importantly, it is standardizable by a protocol
+between clients, identity providers and remote service providers. For
+these reasons, we propose \emph{coudful}, 
+
+a protocol extension to
+OAuth for identity forwarding to remote services in the context of an
+application as well as a library to abstract identity management 
+
+
