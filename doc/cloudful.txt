@@ -1,0 +1,139 @@
+
+
+
+            SERVER CODE IS DEAD, LONG LIVE THE APIs
+             
+                        Stanislas Polu
+
+
+Abstract
+
+Over the past decade, the "Cloud" has introduced successive major
+innovations in the way developpers deploy and maintain their
+applications: First, it started by relieving them from the
+administration of physical machines (EC2[1], Rackspace[2],
+Joyent[3]). Then, more recently it has freed them from administration
+altogether by handling automatic deployment, maintenance and scaling
+of apps on hosted clusters (App Engine[4], Heroku[5], Nodejitsu[6]).
+
+We argue that the next natural simplification to be introduced by the
+"Cloud" is the ability to solely rely on client-side code for
+application developement by taking advantage of the various
+cloud-based services available today over the network, through
+APIs. Nevertheless, such "mash-ups" are still uncommon and reserved to
+simple experimental projects and applications developpers still
+heavily rely on server-side code for most of their advanced projects.
+
+We demonstrate that the reason why it is still impractical for
+developpers to free themselves entirely from the use of server-side
+code in most of their project is authentication. More precisely, it is
+the inability to forward authentication from identity providers
+(Email/Password, Twitter Oauth, Facebook Connect, Google OAuth, ...)
+to data providers and service APIs. Finally, we advocate a new
+authentication model for foreign APIs and present "cloudful", a
+protocol for that model, as well as a client library providing the
+missing authentication forwarding infrastructure to eventually enable
+the design of advanced applications solely out of client code.
+
+
+Introduction
+
+The raise of the "Cloud" model has introduced major innovations not
+only for consumers but also for developpers. In the classic layered
+model of cloud computing[7], these innovations appeared over the past
+decade bottom up starting by *IaaS* solutions (Infrastructure as a
+Service), going up with *PaaS* solutions (Platform as a Service) and
+finally reaching the top of the stack with the increasing number of
+*SaaS* solutions for developpers, that is, hosted databases, data
+APIs, and service APIs.
+
+IaaS solutions first became popular with Amazon EC2 which launched in
+2006. They allowed developpers to get rid of administration of
+physical machines and enabled small teams with limited resources to
+provide first-class services with high availability at a competitive
+price. PaaS solutions appeared a few years later and became popular
+with Heroku and App Engine in 2008. With few additional constraints,
+PaaS solutions helped developpers test, deploy, maintain and scale
+their applications automatically. They helped decrease the time to
+market for a variety of project classes. Applications being hosted and
+run in an opaque environment, the PaaS model has fueled the appearance
+of a variety of hosted databases and REST-based services to be used as
+easily pluggable tools by developpers.
+
+At the same time, with Twitter example, the API has become commonly
+recognized as a must-have distribution channel for any consumer
+platform. Consequently, a very large number of data-driven APIs have
+been opened to developpers to leverage in their apps.
+
+As a result, it is now possible to find hosted version of any kind of
+databases (MongoDB, Redis, MySQL) as well as APIs for all sorts of
+tasks (Realtime Pub/Sub, File Storage, Push Notifications, Search),
+and all sorts data (Maps, Location, Social Content, Music, Images).
+Even though an hosted database is not a pure REST API, it is
+conceptually very close and easily adaptable into a REST API with a
+simple level of indirection. For that matter, we will denote without
+distinction as "APIs" all the aforementioned types of remote services:
+hosted databases, tasks or service APIs as well as data-driven APIs.
+
+The more complete this set of available "APIs" is becoming, the more
+pluggable functionalities or data sets developpers have at their
+disposal to build up their applications. So much that the increasing
+number of "APIs" available to developpers is progressively making
+server-side code less and less important, often relegated to the
+status of simple *API mashup* in charge of orchestrating the use of
+these remote services.
+
+Considering the more specific case of web applications (constrained by
+the *same-origin policy*), with the democratization of solutions
+allowing cross-origin requests (CORS, JSONP, Flash) and their use by
+major web players such as Google or Facebook, it is now perfectly
+acceptable to consider client-code able to tap into remote APIs
+directly.
+
+These two trends enable a programming model where server-side code is
+no longer required. In this model the use of "APIs" is entirely
+orchestrated by client code. Server-side code is only required in
+projects with very specific needs (BigData, specialized or large-scale
+Search, advanced Music, Image or Video manipulation, ...) and should
+also be placed behind clearly defined private APIs.
+
+
+Current Limitations
+
+With the "APIs" as well as the cross-origin techniques being
+available, it is interesting to ask why such programming model is not
+more widely used today and generaly reserved to simple demonstrational
+projects more commonly referred as "web mashups".
+
+One important reason why server-side code is still widely used is
+authentication: most projects rely on ACL-based protection of their
+consumer data. Let's consider an application which would store such
+data on a remote service through an API implementing some form of
+access-control lists. If the consumer is not asked to authentify
+directly against that API, there is no way for client code alone to
+securely prove the API the identity of the current consumer for the
+application. Or, no consumer in her right mind would agree to
+authentify against the 2, 3 (10?) APIs leveraged by the application
+she's attempting to use.
+
+Applications developpers know that, that's the reason why they
+generally implement their own authentication system based on a native
+identity (email & password) or an identity provider (Oauth service
+such as Facebook, Google, Twitter, ...) and use their server code to
+forward that identity to the APIs they use and enforce their security
+model.
+
+That task is extremely common across projects, it is also sensitive in
+terms of security and, more importantly, it is standardizable by a
+protocol between clients, identity providers and remote service
+providers. For these reasons, we propose *cloudful*,
+
+a protocol extension to OAuth for identity forwarding to remote
+services in the context of an application as well as a library to
+abstract identity management
+
+
+// 50 lines ~ 1 colum
+// 100 lines ~ 1 page
+// 70 lines ~ first page
+// goal: ~1000 lines
